@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QPushButton, QLabel, QLineEdit,
-                             QVBoxLayout, QHBoxLayout, QMessageBox, QSizePolicy, QFrame, QTabWidget)
+                             QVBoxLayout, QHBoxLayout, QMessageBox, QSizePolicy, QTabWidget, QFrame)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 import bot_logic
 

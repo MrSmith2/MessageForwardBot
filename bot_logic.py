@@ -1,11 +1,11 @@
 import asyncio
 import threading
-import logging
 from youtube_auth import get_authenticated_service, get_auth_url
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 import youtube_bot
 import twitch_bot
 import config
+import logging
 from utils import extract_video_id
 
 class BotLogic:

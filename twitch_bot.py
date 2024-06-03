@@ -1,7 +1,7 @@
 from twitchio.ext import commands
 from youtube_auth import get_authenticated_service
-import config
 from utils import fetch_live_chat_id, post_message_to_youtube
+import config
 import logging
 
 class TwitchBot(commands.Bot):

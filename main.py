@@ -1,9 +1,9 @@
-import sys
 from PyQt5.QtWidgets import QApplication
 from bot_gui import BotGUI
 from chat_window import ChatWindow
 import asyncio
 import logging
+import sys
 logging.basicConfig(level=logging.INFO)
 
 

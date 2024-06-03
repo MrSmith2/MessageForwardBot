@@ -1,8 +1,8 @@
 import asyncio
-import logging
 from youtube_auth import get_authenticated_service
 import config
 from utils import fetch_live_chat_id, fetch_chat_messages
+import logging
 
 class YouTubeBot:
     def __init__(self, chat_window, twitch_bot):

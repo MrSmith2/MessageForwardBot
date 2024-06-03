@@ -1,7 +1,6 @@
 from PyQt5.QtGui import QPixmap
-import os
-
 from PyQt5.QtWidgets import QWidget, QTextEdit, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton
+import os
 
 
 class ChatWindow(QWidget):
