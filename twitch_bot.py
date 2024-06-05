@@ -1,7 +1,7 @@
 from twitchio.ext import commands
 from youtube_auth import get_authenticated_service
-from utils import fetch_live_chat_id, post_message_to_youtube
 import config
+from utils import fetch_live_chat_id, post_message_to_youtube
 import logging
 
 class TwitchBot(commands.Bot):
@@ -9,6 +9,7 @@ class TwitchBot(commands.Bot):
         super().__init__(token=config.TOKEN, prefix='!', initial_channels=[config.CHAN], loop=loop)
         self.youtube, self.token = None, None
         self.chat_window = chat_window
+        self.word_filter_list = []
 
     async def event_ready(self):
         logging.info(f'Logged in as | {self.nick}')
@@ -20,6 +21,11 @@ class TwitchBot(commands.Bot):
             return
 
         user_message = f"{message.author.name}: {message.content}"
+
+        if any(word in user_message for word in self.word_filter_list):
+            logging.info(f"Message filtered: {user_message}")
+            return
+
         self.chat_window.add_message(user_message, source='Twitch')
         logging.info(f"Received message from Twitch: {user_message}")
         await self.send_message_to_youtube(user_message)
@@ -42,3 +48,6 @@ class TwitchBot(commands.Bot):
         for channel in self.connected_channels:
             logging.info(f"Sending message to Twitch channel: {channel.name}: {message}")
             await channel.send(message)
+
+    def update_word_filter(self, word_filter_list):
+        self.word_filter_list = word_filter_list

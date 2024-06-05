@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (QWidget, QPushButton, QLabel, QLineEdit,
-                             QVBoxLayout, QHBoxLayout, QMessageBox, QSizePolicy, QTabWidget, QFrame)
+                             QVBoxLayout, QHBoxLayout, QMessageBox, QSizePolicy, QFrame, QTabWidget, QListWidget, QListWidgetItem, QInputDialog)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 import bot_logic
 
@@ -18,12 +18,13 @@ class BotThread(QThread):
     bots_started = pyqtSignal()
     start_bots_failed = pyqtSignal(str)
 
-    def __init__(self, youtube_input, chat_window, twitch_loop, youtube_loop):
+    def __init__(self, youtube_input, chat_window, twitch_loop, youtube_loop, word_filter_list):
         super().__init__()
         self.youtube_input = youtube_input
         self.chat_window = chat_window
         self.twitch_loop = twitch_loop
         self.youtube_loop = youtube_loop
+        self.word_filter_list = word_filter_list
 
     def run(self):
         try:
@@ -31,6 +32,7 @@ class BotThread(QThread):
             bot_logic_instance = bot_logic.BotLogic(chat_window=self.chat_window,
                                                     twitch_loop=self.twitch_loop,
                                                     youtube_loop=self.youtube_loop)
+            bot_logic_instance.update_word_filter(self.word_filter_list)
             bot_logic_instance.set_on_bots_started_callback(self.bots_started.emit)
             bot_logic_instance.set_on_start_bots_failed_callback(self.start_bots_failed.emit)
             bot_logic_instance.start_bots(self.youtube_input)
@@ -43,6 +45,8 @@ class BotGUI(QWidget):
         self.chat_window = None
         self.twitch_loop = None
         self.youtube_loop = None
+        self.bot_logic = None
+        self.word_filter_list = []
         self.initUI()
 
     def initUI(self):
@@ -55,12 +59,10 @@ class BotGUI(QWidget):
 
         # Create tabs
         self.auth_tab = QWidget()
-        self.general_tab = QWidget()
-        self.logs_tab = QWidget()
+        self.settings_tab = QWidget()
 
         self.tabs.addTab(self.auth_tab, "Authorization")
-        self.tabs.addTab(self.general_tab, "General")
-        self.tabs.addTab(self.logs_tab, "Logs")
+        self.tabs.addTab(self.settings_tab, "Settings")
 
         self.auth_tab_layout = QVBoxLayout()
         self.auth_tab.setLayout(self.auth_tab_layout)
@@ -111,12 +113,43 @@ class BotGUI(QWidget):
         self.start_button = None
         self.status_label = None
 
+        # Settings tab layout with sub-tabs
+        self.settings_tab_layout = QVBoxLayout()
+        self.settings_tab.setLayout(self.settings_tab_layout)
+
+        self.settings_tabs = QTabWidget()
+        self.settings_tab_layout.addWidget(self.settings_tabs)
+
+        self.filters_tab = QWidget()
+        self.settings_tabs.addTab(self.filters_tab, "Filters")
+
+        # Filters tab layout
+        self.filters_tab_layout = QVBoxLayout()
+        self.filters_tab.setLayout(self.filters_tab_layout)
+
+        self.filter_label = QLabel('Word Filter:', self)
+        self.filters_tab_layout.addWidget(self.filter_label)
+
+        self.filter_list_widget = QListWidget(self)
+        self.filters_tab_layout.addWidget(self.filter_list_widget)
+
+        self.add_filter_button = QPushButton('Add Word', self)
+        self.add_filter_button.clicked.connect(self.add_filter_word)
+        self.filters_tab_layout.addWidget(self.add_filter_button)
+
+        self.remove_filter_button = QPushButton('Remove Selected Word', self)
+        self.remove_filter_button.clicked.connect(self.remove_selected_filter_word)
+        self.filters_tab_layout.addWidget(self.remove_filter_button)
+
     def set_chat_window(self, chat_window):
         self.chat_window = chat_window
 
     def set_event_loops(self, twitch_loop, youtube_loop):
         self.twitch_loop = twitch_loop
         self.youtube_loop = youtube_loop
+
+    def set_bot_logic(self, bot_logic):
+        self.bot_logic = bot_logic
 
     def reconnect_twitch(self):
         # ToDo
@@ -141,7 +174,7 @@ class BotGUI(QWidget):
         self.auth_tab_layout.addWidget(self.auth_code_label, alignment=Qt.AlignLeft)
 
         self.auth_code_entry = QLineEdit(self)
-        self.auth_code_entry.setFixedSize(500, 50)  # Увеличенный размер
+        self.auth_code_entry.setFixedSize(500, 50)  # Increased size
         self.auth_code_entry.setStyleSheet("font-size: 16px;")
         self.auth_tab_layout.addWidget(self.auth_code_entry, alignment=Qt.AlignLeft)
 
@@ -212,7 +245,7 @@ class BotGUI(QWidget):
                                  "YouTube Video ID or URL cannot be empty. Please enter a valid ID или URL.")
             return
 
-        self.bot_thread = BotThread(youtube_input, self.chat_window, self.twitch_loop, self.youtube_loop)
+        self.bot_thread = BotThread(youtube_input, self.chat_window, self.twitch_loop, self.youtube_loop, self.word_filter_list)
         self.bot_thread.bots_started.connect(self.show_status_running)
         self.bot_thread.start_bots_failed.connect(self.show_error_message)
         self.bot_thread.start()
@@ -243,3 +276,21 @@ class BotGUI(QWidget):
             self.auth_tab_layout.removeWidget(self.start_button)
             self.start_button.deleteLater()
             self.start_button = None
+
+    def add_filter_word(self):
+        word, ok = QInputDialog.getText(self, 'Add Filter Word', 'Enter word to filter:')
+        if ok and word:
+            self.word_filter_list.append(word)
+            self.filter_list_widget.addItem(QListWidgetItem(word))
+            if self.bot_logic:
+                self.bot_logic.update_word_filter(self.word_filter_list)
+
+    def remove_selected_filter_word(self):
+        selected_item = self.filter_list_widget.currentItem()
+        if selected_item:
+            word = selected_item.text()
+            self.word_filter_list.remove(word)
+            self.filter_list_widget.takeItem(self.filter_list_widget.row(selected_item))
+            selected_item = None
+            if self.bot_logic:
+                self.bot_logic.update_word_filter(self.word_filter_list)

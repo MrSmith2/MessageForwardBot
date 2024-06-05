@@ -1,11 +1,11 @@
 import asyncio
 import threading
+import logging
 from youtube_auth import get_authenticated_service, get_auth_url
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 import youtube_bot
 import twitch_bot
 import config
-import logging
 from utils import extract_video_id
 
 class BotLogic:
@@ -20,6 +20,8 @@ class BotLogic:
         self.twitch_loop = twitch_loop
         self.youtube_loop = youtube_loop
         self.twitch_bot = None
+        self.youtube_bot = None
+        self.word_filter_list = []
 
     def authenticate(self, auth_code):
         config.AUTH_CODE = auth_code
@@ -59,6 +61,7 @@ class BotLogic:
             self._start_bots_threads()
             if self.on_bots_started:
                 self.on_bots_started()
+            self.set_chat_window_bots()  # Added here
         except Exception as e:
             logging.error(f"Error starting bots: {e}")
             if self.on_start_bots_failed:
@@ -79,19 +82,30 @@ class BotLogic:
     def _run_twitch_bot(self):
         asyncio.set_event_loop(self.twitch_loop)
         self.twitch_bot = twitch_bot.TwitchBot(self.chat_window, self.twitch_loop)
+        self.twitch_bot.update_word_filter(self.word_filter_list)
         self.twitch_loop.run_until_complete(self.twitch_bot.start())
+        logging.info("TwitchBot started")
 
     def _run_youtube_bot(self):
         asyncio.set_event_loop(self.youtube_loop)
-        self.youtube_loop.run_until_complete(youtube_bot.YouTubeBot(self.chat_window, self.twitch_bot).listen_to_chat())
+        self.youtube_bot = youtube_bot.YouTubeBot(self.chat_window, self.twitch_bot)
+        self.youtube_bot.update_word_filter(self.word_filter_list)
+        self.youtube_loop.run_until_complete(self.youtube_bot.listen_to_chat())
+        logging.info("YouTubeBot started")
 
     def stop_bots(self):
         self.running = False
+        if self.twitch_bot:
+            self.twitch_bot.close()
+        if self.youtube_bot:
+            self.youtube_bot.stop()
 
-def extract_video_id(youtube_url):
-    import re
-    pattern = r"(?:https?:\/\/)?(?:www\.)?youtube\.com\/live\/([a-zA-Z0-9_-]{11})"
-    match = re.match(pattern, youtube_url)
-    if match:
-        return match.group(1)
-    return youtube_url
+    def set_chat_window_bots(self):
+        self.chat_window.set_bots(self.youtube_bot, self.twitch_bot)
+
+    def update_word_filter(self, word_filter_list):
+        self.word_filter_list = word_filter_list
+        if self.twitch_bot:
+            self.twitch_bot.update_word_filter(word_filter_list)
+        if self.youtube_bot:
+            self.youtube_bot.update_word_filter(word_filter_list)

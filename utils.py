@@ -1,6 +1,6 @@
 import aiohttp
-import re
 import logging
+import re
 
 YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3"
 
